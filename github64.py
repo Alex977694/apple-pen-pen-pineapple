@@ -152,6 +152,17 @@ def stop_scanner():
     GITHUB_SCANNER_RUNNING = False
     return "🛑 GitHub 64-Key Scanner зогслоо."
 
+def clear_tokens():
+    """Бүх олдсон түлхүүрүүдийг устгаж файлыг хоослох"""
+    try:
+        if os.path.exists(GITHUB_TXT_PATH):
+            with open(GITHUB_TXT_PATH, "w", encoding="utf-8") as f:
+                f.write("")  # Файлыг хоослох
+            return "🗑️ Бүх олдсон түлхүүрүүдийг амжилттай цэвэрлэлээ (хоосоллоо)."
+        return "💡 Цэвэрлэх файл олдсонгүй."
+    except Exception as e:
+        return f"❌ Алдаа гарлаа: {e}"
+
 def get_tokens_text():
     if os.path.exists(GITHUB_TXT_PATH):
         with open(GITHUB_TXT_PATH, "r", encoding="utf-8") as f:
