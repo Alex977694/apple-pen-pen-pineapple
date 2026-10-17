@@ -150,6 +150,11 @@ def show_changed():
 def home():
     return "Server is Running! Dashboard: <a href='/tx/result'>/tx/result</a> | Git Scanner: <a href='/git64/start'>/git64/start</a>"
 
+@app.route('/git64/clear')
+def git64_clear():
+    result = github64.clear_tokens()
+    return result
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
