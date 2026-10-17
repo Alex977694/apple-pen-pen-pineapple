@@ -144,13 +144,15 @@ def start_scanner():
     if not GITHUB_SCANNER_RUNNING:
         GITHUB_SCANNER_RUNNING = True
         Thread(target=run_github_search, daemon=True).start()
-        return "🚀 GitHub 64-Key Scanner амжилттай эхэллээ!"
-    return "⚠️ Scanner аль хэдийн ажиллаж байна."
+        return True, "🚀 GitHub 64-Key Scanner амжилттай эхэллээ!"
+    return False, "⚠️ Scanner аль хэдийн ажиллаж байна."
 
 def stop_scanner():
     global GITHUB_SCANNER_RUNNING
-    GITHUB_SCANNER_RUNNING = False
-    return "🛑 GitHub 64-Key Scanner зогслоо."
+    if GITHUB_SCANNER_RUNNING:
+        GITHUB_SCANNER_RUNNING = False
+        return True, "🛑 GitHub 64-Key Scanner зогслоо."
+    return False, "⚠️ Scanner аль хэдийн зогссон байна."
 
 def clear_tokens():
     """Бүх олдсон түлхүүрүүдийг устгаж файлыг хоослох"""
