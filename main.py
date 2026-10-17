@@ -76,9 +76,9 @@ def background_wallet_scanner():
 Thread(target=background_wallet_scanner, daemon=True).start()
 
 # --- GITHUB SCANNER ROUTES ---
-@app.route("/git64/start")
+@app.route('/git64/start')
 def start_git64():
-    success, msg = github64.start_scanner()
+    msg = github64.start_scanner()
     return msg
 
 @app.route("/git64/stop")
