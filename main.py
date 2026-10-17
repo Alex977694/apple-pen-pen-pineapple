@@ -91,11 +91,6 @@ def background_wallet_scanner():
 # Сервер асах үед Balance Checker Worker-ийг background-д шууд асаах
 Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
 
-# Мөн Blacklist харах энпоинтоо энд нэмээрэй:
-@app.route("/blacklist/text")
-def blacklist_text():
-    return balance_checker.get_blacklist_text(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
-
 # --- GITHUB SCANNER ROUTES ---
 @app.route('/git64/start')
 def start_git64():
