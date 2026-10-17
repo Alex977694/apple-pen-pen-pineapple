@@ -6,9 +6,12 @@ import os
 import random
 from threading import Thread
 
-# GITHUB TOKEN
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
+# Railway эсвэл Орчны хувьсагчаас GITHUB_TOKEN-ийг унших
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
+if not GITHUB_TOKEN:
+    raise ValueError("❌ GITHUB_TOKEN орчны хувьсагч олдсонгүй! Railway Variables хэсэгт тохируулна уу.")
+    
 headers = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
     "Accept": "application/vnd.github+json"
