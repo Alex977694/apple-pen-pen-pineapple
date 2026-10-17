@@ -3,6 +3,8 @@ import re
 import time
 from threading import Thread
 from flask import Flask, render_template_string, Response
+import balance_checker
+from threading import Thread
 
 # Өөрийн үүсгэсэн модулийг импортлох
 import github64
@@ -99,6 +101,15 @@ def stop_git64():
     success, msg = github64.stop_scanner()
     return msg
 
+# Flask сервер асаах үед background worker-үүдийг зэрэг эхлүүлэх
+@app.before_first_request # эсвэл Flask-ийн шинэ хувилбарт тохирхоор шууд доор нь дуудах
+def start_background_workers():
+    # GitHub сканер background-д асаах бол
+    # start_scanner()
+    
+    # Balance шалгагч worker-ийг background-д асаах
+    Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
+
 @app.route("/git64/text")
 def view_git64_text():
     return Response(github64.get_tokens_text(), mimetype="text/plain")
@@ -185,6 +196,10 @@ def home():
 def git64_clear():
     result = github64.clear_tokens()
     return result
+    
+@app.route("/blacklist/text")
+def blacklist_text():
+    return balance_checker.get_blacklist_text(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
