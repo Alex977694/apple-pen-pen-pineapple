@@ -17,11 +17,13 @@ headers = {
     "Accept": "application/vnd.github+json"
 }
 
-# Railway volume (/data) байгаа эсэхийг шалгаад result.txt рүү хадгалах
+# Railway Volume зам шалгах тохиргоо
 if os.path.exists("/data"):
     RESULT_TXT_PATH = "/data/privates.txt"
+    print(f"📁 Railway Volume илэрсэн: {RESULT_TXT_PATH}")
 else:
     RESULT_TXT_PATH = "privates.txt"
+    print(f"⚠️ Volume олдсонгүй, локал файлд хадгална: {RESULT_TXT_PATH}")
 
 # 👉 Анх асахдаа 100% УНТРААЛТТАЙ байх ёстой
 GITHUB_SCANNER_RUNNING = False
@@ -54,6 +56,9 @@ def process_single_file(item):
 
 def save_to_file(tokens):
     try:
+        # /data фолдер байхгүй бол автоматаар үүсгэх
+        os.makedirs(os.path.dirname(RESULT_TXT_PATH), exist_ok=True)
+        
         existing = set()
         if os.path.exists(RESULT_TXT_PATH):
             with open(RESULT_TXT_PATH, "r", encoding="utf-8") as f:
@@ -68,15 +73,16 @@ def save_to_file(tokens):
             for token in tokens:
                 token_clean = token.strip().lower()
                 if token_clean not in existing:
-                    # Шууд Result формат руу эсвэл цэвэр түлхүүрээр нь бичих
                     f.write(f"{token}\n")
                     existing.add(token_clean)
                     new_count += 1
 
         if new_count > 0:
             print(f"✅ Шинээр {new_count} ширхэг кодыг {RESULT_TXT_PATH} руу амжилттай хадгаллаа.")
-    except OSError as e:
-        print(f"Файл хадгалах алдаа: {e}")
+        else:
+            print(f"ℹ️ Шинэ түлхүүр олдсонгүй (Бүгд давхардсан байна).")
+    except Exception as e:
+        print(f"❌ Файл хадгалах алдаа: {e}")
 
 def run_github_search():
     global GITHUB_SCANNER_RUNNING
