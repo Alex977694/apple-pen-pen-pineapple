@@ -6,17 +6,14 @@ import os
 import random
 from threading import Thread
 
-# railway болон системээс environment variable-аар нь татаж авах ✅
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-if not GITHUB_TOKEN:
-    print("⚠️ Анхааруулга: GITHUB_TOKEN орчин хувьсагч (environment variable) олдсонгүй!")
+# GITHUB TOKEN
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 
 headers = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
     "Accept": "application/vnd.github+json"
 }
 
-# Railway Persistent Volume зам (Локал байвал desktop эсвэл одоогийн фолдерт хадгална)
 if os.path.exists("/data"):
     GITHUB_TXT_PATH = "/data/github.txt"
 else:
@@ -25,7 +22,6 @@ else:
 GITHUB_SCANNER_RUNNING = False
 
 def process_single_file(item):
-    """Нэг файлыг татаж аваад 64 оронтой код байгаа эсэхийг шалгах функц"""
     file_url = item.get("html_url", "")
     repo_name = item.get("repository", {}).get("full_name", "")
     
@@ -111,7 +107,6 @@ def run_github_search():
                         time.sleep(sleep_time)
 
                         response = requests.get(url, headers=headers, params=params, timeout=15)
-
                         print(f"DEBUG: Status Code: {response.status_code} | Query: {query} | Page: {page}")
 
                         if response.status_code == 200:
@@ -142,8 +137,10 @@ def run_github_search():
                         else:
                             print(f"❌ Бусад алдаа! Status: {response.status_code}, Response: {response.text[:200]}")
                             break
+
+                    except requests.RequestException as e:
+                        print(f"Сүлжээний алдаа: {e}")
         
-        # Бүх keyword-уудаар хайж дуусаад түр хүлээгээд дахин эхэлнэ
         time.sleep(10)
 
 def start_scanner():
@@ -162,12 +159,11 @@ def stop_scanner():
     return False, "⚠️ Scanner аль хэдийн зогссон байна."
 
 def clear_tokens():
-    """Бүх олдсон түлхүүрүүдийг устгаж файлыг хоослох"""
     try:
         if os.path.exists(GITHUB_TXT_PATH):
             with open(GITHUB_TXT_PATH, "w", encoding="utf-8") as f:
-                f.write("")  # Файлыг хоослох
-            return "🗑️ Бүх олдсон түлхүүрүүдийг амжилттай цэвэрлэлээ (хоосоллоо)."
+                f.write("")
+            return "🗑️ Бүх олдсон түлхүүрүүдийг амжилттай цэвэрлэлээ."
         return "💡 Цэвэрлэх файл олдсонгүй."
     except Exception as e:
         return f"❌ Алдаа гарлаа: {e}"
