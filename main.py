@@ -1,18 +1,15 @@
 import os
 import re
 import time
-import requests
 from threading import Thread
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
-# Скан хийсэн үр дүнг санах ойд хадгалах глобал хувьсагч
 SCANNED_WALLETS = []
 ACTIVE_WALLETS = []
 
 def parse_result_file():
-    """/data/result.txt эсвэл result.txt файлоос хаяг болон түлхүүрүүдийг унших"""
     wallets = []
     result_file = "/data/result.txt" if os.path.exists("/data/result.txt") else "result.txt"
     
@@ -31,68 +28,51 @@ def parse_result_file():
         
         lines = block.strip().split("\n")
         details = []
+        has_real_balance = False
+        
         for line in lines:
             if "💰" in line:
                 details.append(line.strip())
+                # Зөвхөн баланс нь 0.0-ээс их буюу криптовалюттай үед л идэвхтэй гэж үзэх
+                if "Баланс:" in line:
+                    if not ("Баланс: 0.0" in line or "0.0 BTC" in line or "9e-15" in line or "2.8e-17" in line):
+                        has_real_balance = True
+                    # Хэрэв баланс дээр тодорхой дүнтэй байвал
+                    if "USD" in line and not ("$0.00 USD" in line):
+                        has_real_balance = True
         
         if key:
-            wallets.append({"key": key, "details": details, "is_active": False})
+            wallets.append({
+                "key": key, 
+                "details": details, 
+                "is_active": has_real_balance
+            })
     return wallets
 
-def check_address_activity(address):
-    """Etherscan болон бусад нээлттэй API-уудаар гүйлгээ болон баланс шалгах хөнгөн логик"""
-    # Жишээ нь Blockscan / Public RPC эсвэл файл доторх анхны мэдээллээс шалгана
-    # Энд файл доторх гүйлгээний тоо болон балансыг задлан шинжилж идэвхтэй эсэхийг тогтооно
-    pass
-
 def background_scanner():
-    """10-15 минут (900 секунд) тутамд автоматаар шалгадаг фонны процесс"""
     global SCANNED_WALLETS, ACTIVE_WALLETS
     while True:
         try:
-            print("[BACKGROUND SCANNER] Starting chain scan for updated wallets...")
             raw_wallets = parse_result_file()
-            active_list = []
-            
-            for w in raw_wallets:
-                has_balance_or_tx = False
-                for detail in w['details']:
-                    # Баланстай (0.0-ээс их) эсэхийг шалгах
-                    if "Баланс:" in detail and "Баланс: 0.0" not in detail and "0.0 BTC" not in detail:
-                        has_balance_or_tx = True
-                    # Гүйлгээтэй (0-ээс их) эсэхийг шалгах
-                    tx_match = re.search(r"Гүйлгээ:\s*(\d+)", detail)
-                    if tx_match and int(tx_match.group(1)) > 0:
-                        has_balance_or_tx = True
-                
-                w['is_active'] = has_balance_or_tx
-                if has_balance_or_tx:
-                    active_list.append(w)
-            
-            # Баланстай/Гүйлгээтэйг нь дээш нь эрэмбэлэх
-            raw_wallets.sort(key=lambda x: x['is_active'], reverse=True)
+            active_list = [w for w in raw_wallets if w['is_active']]
             
             SCANNED_WALLETS = raw_wallets
             ACTIVE_WALLETS = active_list
-            print(f"[BACKGROUND SCANNER] Done. Total: {len(SCANNED_WALLETS)}, Active: {len(ACTIVE_WALLETS)}")
+            print(f"[SCANNER] Total: {len(SCANNED_WALLETS)}, Active with balance: {len(ACTIVE_WALLETS)}")
         except Exception as e:
-            print(f"[BACKGROUND SCANNER ERROR] {e}")
-            
-        # 10 минут (600 секунд) тутамд дахин шалгана
-        time.sleep(600)
+            print(f"[ERROR] {e}")
+        time.sleep(300) # 5 минут тутамд
 
-# Flask асахтай хамт Background Thread-ийг эхлүүлэх
 scanner_thread = Thread(target=background_scanner, daemon=True)
 scanner_thread.start()
 
-# HTML Загвар
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>{{ title }}</title>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="60"> <!-- 1 минут тутамд автоматаар шинэчлэгдэнэ -->
+    <meta http-equiv="refresh" content="60">
     <style>
         body { background-color: #0d1117; color: #c9d1d9; font-family: Consolas, monospace; padding: 20px; }
         h1 { color: #58a6ff; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
@@ -109,7 +89,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="nav">
         <a href="/tx/result">📋 Бүх Түрүүвч (/tx/result)</a>
-        <a href="/tx/changed" style="color: #3fb950;">🔥 Зөвхөн Өөрчлөгдсөн/Идэвхтэй Түрүүвч (/tx/changed)</a>
+        <a href="/tx/changed" style="color: #3fb950;">🔥 Зөвхөн Баланстай/Идэвхтэй Түрүүвч (/tx/changed)</a>
     </div>
 
     <h1>{{ title }}</h1>
@@ -118,7 +98,7 @@ HTML_TEMPLATE = """
     {% for w in wallets %}
     <div class="card {% if w.is_active %}active-card{% endif %}">
         {% if w.is_active %}
-        <div class="badge">🔥 ONTSGOILSON / ACTIVE / CHANGED</div>
+        <div class="badge">🔥 REAL BALANCE / ACTIVE</div>
         {% endif %}
         <div>🔑 <span class="key">Key:</span> {{ w.key }}</div>
         {% for d in w.details %}
@@ -126,7 +106,7 @@ HTML_TEMPLATE = """
         {% endfor %}
     </div>
     {% else %}
-    <p style="color: #8b949e;">Одоогоор ямар нэгэн өөрчлөлтэй/идэвхтэй түрүүвч олдсон огүй байна...</p>
+    <p style="color: #8b949e;">Одоогоор ямар нэгэн баланстай идэвхтэй түрүүвч олдсонгүй...</p>
     {% endfor %}
 </body>
 </html>
@@ -139,8 +119,8 @@ def show_results():
 
 @app.route("/tx/changed")
 def show_changed():
-    wallets = ACTIVE_WALLETS if SCANNED_WALLETS else [w for w in parse_result_file() if w.get('is_active')]
-    return render_template_string(HTML_TEMPLATE, title="🔥 Changed & Active Crypto Wallets Only", wallets=wallets)
+    wallets = ACTIVE_WALLETS if SCANNED_WALLETS else [w for w in parse_result_file() if w['is_active']]
+    return render_template_string(HTML_TEMPLATE, title="🔥 Active Wallets with Balance Only", wallets=wallets)
 
 @app.route("/")
 def home():
