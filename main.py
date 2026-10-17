@@ -88,7 +88,13 @@ def background_wallet_scanner():
             print(f"[WALLET SCANNER ERROR] {e}")
         time.sleep(300)
 
-Thread(target=background_wallet_scanner, daemon=True).start()
+# Сервер асах үед Balance Checker Worker-ийг background-д шууд асаах
+Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
+
+# Мөн Blacklist харах энпоинтоо энд нэмээрэй:
+@app.route("/blacklist/text")
+def blacklist_text():
+    return balance_checker.get_blacklist_text(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 # --- GITHUB SCANNER ROUTES ---
 @app.route('/git64/start')
@@ -100,15 +106,6 @@ def start_git64():
 def stop_git64():
     success, msg = github64.stop_scanner()
     return msg
-
-# Flask сервер асаах үед background worker-үүдийг зэрэг эхлүүлэх
-@app.before_first_request # эсвэл Flask-ийн шинэ хувилбарт тохирхоор шууд доор нь дуудах
-def start_background_workers():
-    # GitHub сканер background-д асаах бол
-    # start_scanner()
-    
-    # Balance шалгагч worker-ийг background-д асаах
-    Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
 
 @app.route("/git64/text")
 def view_git64_text():
