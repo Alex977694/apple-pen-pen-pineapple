@@ -69,6 +69,8 @@ def save_to_file(tokens):
 
 def run_github_search():
     global GITHUB_SCANNER_RUNNING
+    print("🚀 GITHUB SEARCH THREAD STARTED SUCCESSFULLY!")
+    
     keywords = [
         "secp256k1", "eth_private_key", "btc_private_key", "wallet_private",
         "ecdsa_private_key", "signing_key", "master_key", "private_key",
@@ -80,8 +82,10 @@ def run_github_search():
     url = "https://api.github.com/search/code"
     
     while GITHUB_SCANNER_RUNNING:
+        print("🔄 Search loop эхэлж байна...")
         for keyword in keywords:
             if not GITHUB_SCANNER_RUNNING:
+                print("🛑 Scanner зогссон байна (Keyword loop break).")
                 break
             print(f"\n🔍 Хайж байна: '{keyword}'...")
             
@@ -103,16 +107,17 @@ def run_github_search():
                     }
 
                     try:
-                        sleep_time = random.uniform(3.0, 5.0)
+                        sleep_time = random.uniform(2.0, 4.0)
                         time.sleep(sleep_time)
 
+                        print(f"📡 API хүсэлт явуулж байна -> Query: {query}, Page: {page}")
                         response = requests.get(url, headers=headers, params=params, timeout=15)
-                        print(f"DEBUG: Status Code: {response.status_code} | Query: {query} | Page: {page}")
+                        print(f"📥 API Response Status: {response.status_code}")
 
                         if response.status_code == 200:
                             items = response.json().get("items", [])
+                            print(f"📦 Олдсон файл тоо (items): {len(items)}")
                             if not items:
-                                print(f"ℹ️ Энэ хуудас хоосон байна (items: 0)")
                                 continue
                             
                             found_tokens = set()
@@ -129,25 +134,29 @@ def run_github_search():
                                 save_to_file(found_tokens)
 
                         elif response.status_code == 403:
-                            print(f"❌ Rate limit эсвэл Forbidden (403): {response.text[:200]}")
+                            print(f"❌ Rate limit / 403 Forbidden: {response.text[:150]}...")
                             time.sleep(30)
                         elif response.status_code == 401:
-                            print(f"❌ Token буруу эсвэл хүчингүй байна (401): {response.text[:200]}")
+                            print(f"❌ Token буруу / 401 Unauthorized: {response.text[:150]}...")
                             break
                         else:
-                            print(f"❌ Бусад алдаа! Status: {response.status_code}, Response: {response.text[:200]}")
+                            print(f"❌ Алдаа гарлаа! Status: {response.status_code}, Text: {response.text[:150]}...")
                             break
 
                     except requests.RequestException as e:
-                        print(f"Сүлжээний алдаа: {e}")
+                        print(f"⚠️ Сүлжээний алдаа: {e}")
         
+        print("⏳ Бүх keyword хайж дууслаа. 10 секунд хүлээгээд дахин эхэлнэ...")
         time.sleep(10)
 
 def start_scanner():
     global GITHUB_SCANNER_RUNNING
+    print(f"DEBUG: start_scanner() дуудагдлаа. Current state: {GITHUB_SCANNER_RUNNING}")
     if not GITHUB_SCANNER_RUNNING:
         GITHUB_SCANNER_RUNNING = True
-        Thread(target=run_github_search, daemon=True).start()
+        t = Thread(target=run_github_search, daemon=True)
+        t.start()
+        print("DEBUG: Thread амжилттай асаалаа.")
         return True, "🚀 GitHub 64-Key Scanner амжилттай эхэллээ!"
     return False, "⚠️ Scanner аль хэдийн ажиллаж байна."
 
