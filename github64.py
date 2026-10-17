@@ -6,8 +6,10 @@ import os
 import random
 from threading import Thread
 
-# GITHUB TOKEN (Environment variable-аас уншина, байхгүй бол fallback)
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
+# railway болон системээс environment variable-аар нь татаж авах ✅
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+if not GITHUB_TOKEN:
+    print("⚠️ Анхааруулга: GITHUB_TOKEN орчин хувьсагч (environment variable) олдсонгүй!")
 
 headers = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
