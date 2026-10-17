@@ -78,12 +78,13 @@ Thread(target=background_wallet_scanner, daemon=True).start()
 # --- GITHUB SCANNER ROUTES ---
 @app.route('/git64/start')
 def start_git64():
-    msg = github64.start_scanner()
-    return msg
+    success, msg = github64.start_scanner()
+    return msg  # Зөвхөн стринг мессежийг буцаана
 
 @app.route("/git64/stop")
 def stop_git64():
-    return github64.stop_scanner()
+    success, msg = github64.stop_scanner()
+    return msg  # Зөвхөн стринг мессежийг буцаана
 
 @app.route("/git64/text")
 def view_git64_text():
