@@ -30,25 +30,45 @@ def parse_result_file():
         key = key_match.group(1) if key_match else ""
         lines = block.strip().split("\n")
         details = []
+        total_usd_balance = 0.0
         has_valuable_balance = False
         chain_tx_data = {}
+        
         for line in lines:
             if "💰" in line:
                 line_str = line.strip()
                 details.append(line_str)
+                
+                # USD балансыг салгаж авах
                 usd_match = re.search(r"\$\s*([\d\.]+)\s*USD", line_str)
                 if usd_match:
                     try:
-                        if float(usd_match.group(1)) > 0.00:
+                        val = float(usd_match.group(1))
+                        total_usd_balance += val
+                        if val >= 0.01:
                             has_valuable_balance = True
                     except ValueError:
                         pass
+                        
                 chain_match = re.search(r"💰\s*([^\n\[]+)", line_str)
                 tx_match = re.search(r"Гүйлгээ:\s*(\d+)", line_str)
                 if chain_match and tx_match:
                     chain_tx_data[chain_match.group(1).strip()] = int(tx_match.group(1))
+                    
         if key:
-            wallets.append({"key": key, "details": details, "has_balance": has_valuable_balance, "tx_data": chain_tx_data})
+            wallets.append({
+                "key": key, 
+                "details": details, 
+                "has_balance": has_valuable_balance, 
+                "total_usd": total_usd_balance,
+                "tx_data": chain_tx_data
+            })
+            
+    # 🎯 Эрэмбэлэх логик:
+    # 1. USD >= 0.01 баланстай коунууд ямагт хамгийн дээр (0 бүлэг), бусад нь доор (1 бүлэг).
+    # 2. Тухайн бүлэг дотроо хамгийн их USD баланстай нь хамгийн дээр буюу буурах дарааллаар (-w["total_usd"]).
+    wallets.sort(key=lambda w: (0 if w["total_usd"] >= 0.01 else 1, -w["total_usd"]))
+    
     return wallets
 
 def background_wallet_scanner():
