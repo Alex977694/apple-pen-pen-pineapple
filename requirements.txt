@@ -1,2 +1,6 @@
-Flask
 requests
+ecdsa
+base58
+eth-account
+solders
+flask
