@@ -56,6 +56,7 @@ def background_wallet_scanner():
             current_wallets = parse_result_file()
             SCANNED_WALLETS = current_wallets
             new_changed = []
+            
             if not PREVIOUS_WALLETS_STATE:
                 for w in current_wallets:
                     PREVIOUS_WALLETS_STATE[w['key']] = w['tx_data']
@@ -64,9 +65,21 @@ def background_wallet_scanner():
                     k = w['key']
                     current_txs = w['tx_data']
                     prev_txs = PREVIOUS_WALLETS_STATE.get(k, {})
-                    is_tx_changed = any(chain in prev_txs and prev_txs[chain] != tx_cnt for chain, tx_cnt in current_txs.items())
-                    if is_tx_changed:
-                        new_changed.append(w)
+                    
+                    wallet_changes = []
+                    for chain, cur_cnt in current_txs.items():
+                        if chain in prev_txs:
+                            prev_cnt = prev_txs[chain]
+                            if cur_cnt != prev_cnt:
+                                diff = cur_cnt - prev_cnt
+                                sign = f"+{diff}" if diff > 0 else str(diff)
+                                wallet_changes.append(f"🔥 {chain}: {prev_cnt} ➡️ {cur_cnt} ({sign})")
+                                
+                    if wallet_changes:
+                        w_copy = w.copy()
+                        w_copy['changes_summary'] = wallet_changes
+                        new_changed.append(w_copy)
+                        
                     PREVIOUS_WALLETS_STATE[k] = current_txs
                 CHANGED_WALLETS = new_changed
         except Exception as e:
@@ -79,12 +92,12 @@ Thread(target=background_wallet_scanner, daemon=True).start()
 @app.route('/git64/start')
 def start_git64():
     success, msg = github64.start_scanner()
-    return msg  # Зөвхөн стринг мессежийг буцаана
+    return msg
 
 @app.route("/git64/stop")
 def stop_git64():
     success, msg = github64.stop_scanner()
-    return msg  # Зөвхөн стринг мессежийг буцаана
+    return msg
 
 @app.route("/git64/text")
 def view_git64_text():
@@ -102,9 +115,12 @@ HTML_TEMPLATE = """
         h1 { color: #58a6ff; border-bottom: 2px solid #30363d; padding-bottom: 10px; }
         .card { background: #161b22; border: 1px solid #30363d; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
         .balance-card { border: 2px solid #238636; background: #0e2a1f; }
+        .changed-card { border: 2px solid #3fb950; background: #11261a; }
         .key { color: #f2e05a; font-weight: bold; }
         .detail { margin-left: 20px; color: #79c0ff; }
+        .change-detail { margin-left: 20px; color: #3fb950; font-weight: bold; font-size: 14px; background: #1b3a26; padding: 4px 8px; border-radius: 4px; margin-top: 5px; display: inline-block; }
         .badge { background: #238636; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; }
+        .badge-change { background: #3fb950; color: #0d1117; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; font-weight: bold; }
         .nav { margin-bottom: 20px; }
         .nav a { color: #58a6ff; text-decoration: none; margin-right: 15px; font-weight: bold; }
     </style>
@@ -122,11 +138,25 @@ HTML_TEMPLATE = """
     <p>Жагсаалтад байгаа: <strong>{{ wallets|length }}</strong></p>
 
     {% for w in wallets %}
-    <div class="card {% if w.has_balance %}balance-card{% endif %}">
-        {% if w.has_balance %}
+    <div class="card {% if is_changed_view and w.changes_summary %}changed-card{% elif w.has_balance %}balance-card{% endif %}">
+        {% if is_changed_view and w.changes_summary %}
+        <div class="badge-change">🔥 TRANSACTION CHANGED</div>
+        {% elif w.has_balance %}
         <div class="badge">💰 BALANCE > $0.00 FOUND</div>
         {% endif %}
+        
         <div>🔑 <span class="key">Key:</span> {{ w.key }}</div>
+        
+        {% if is_changed_view and w.changes_summary %}
+            <div style="margin-top: 10px; margin-bottom: 10px;">
+            {% for change in w.changes_summary %}
+                <div class="change-detail">{{ change }}</div><br>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <hr style="border: 0; border-top: 1px solid #30363d; margin: 10px 0;">
+        
         {% for d in w.details %}
         <div class="detail">{{ d }}</div>
         {% endfor %}
@@ -141,11 +171,11 @@ HTML_TEMPLATE = """
 @app.route("/tx/result")
 def show_results():
     wallets = SCANNED_WALLETS if SCANNED_WALLETS else parse_result_file()
-    return render_template_string(HTML_TEMPLATE, title="🚀 Monitored Crypto Wallets Dashboard (All)", wallets=wallets)
+    return render_template_string(HTML_TEMPLATE, title="🚀 Monitored Crypto Wallets Dashboard (All)", wallets=wallets, is_changed_view=False)
 
 @app.route("/tx/changed")
 def show_changed():
-    return render_template_string(HTML_TEMPLATE, title="🔥 Changed Transactions Only", wallets=CHANGED_WALLETS)
+    return render_template_string(HTML_TEMPLATE, title="🔥 Changed Transactions Only", wallets=CHANGED_WALLETS, is_changed_view=True)
 
 @app.route("/")
 def home():
