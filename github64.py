@@ -173,8 +173,8 @@ def stop_scanner():
 
 def clear_tokens():
     try:
-        if os.path.exists(GITHUB_TXT_PATH):
-            with open(GITHUB_TXT_PATH, "w", encoding="utf-8") as f:
+        if os.path.exists(RESULT_TXT_PATH):
+            with open(RESULT_TXT_PATH, "w", encoding="utf-8") as f:
                 f.write("")
             return "🗑️ Бүх олдсон түлхүүрүүдийг амжилттай цэвэрлэлээ."
         return "💡 Цэвэрлэх файл олдсонгүй."
@@ -182,7 +182,7 @@ def clear_tokens():
         return f"❌ Алдаа гарлаа: {e}"
 
 def get_tokens_text():
-    if os.path.exists(GITHUB_TXT_PATH):
-        with open(GITHUB_TXT_PATH, "r", encoding="utf-8") as f:
+    if os.path.exists(RESULT_TXT_PATH):
+        with open(RESULT_TXT_PATH, "r", encoding="utf-8") as f:
             return f.read()
     return "Одоогоор ямар нэгэн GitHub 64-key олдсонгүй (Файл хоосон байна)."
