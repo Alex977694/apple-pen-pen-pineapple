@@ -23,7 +23,7 @@ EVM_CHAINS = {
     "Moonbeam (GLMR)": "https://rpc.api.moonbeam.network",
 }
 
-# Railway volume шалгах
+# Railway volume шалгах (/data рүү найдвартай хадгалах)
 if os.path.exists("/data"):
     PRIVATES_PATH = "/data/privates.txt"
     RESULT_PATH = "/data/result.txt"
@@ -49,11 +49,17 @@ def private_key_to_btc_address(priv_key_hex):
         return None
 
 def get_usd_value(coin_symbol, balance):
+    """Балансыг тухайн коины яг бодит ханшаар USD руу хөрвүүлэх"""
     try:
         coin_map = {
-            "ETH": "ethereum", "BNB": "binancecoin", "BTC": "bitcoin", 
-            "POL": "polygon-ecosystem-token", "AVAX": "avalanche-2",
-            "xDAI": "xdai", "CELO": "celo", "GLMR": "moonbeam"
+            "ETH": "ethereum", 
+            "BNB": "binancecoin", 
+            "BTC": "bitcoin", 
+            "POL": "polygon-ecosystem-token",
+            "AVAX": "avalanche-2",
+            "xDAI": "xdai",
+            "CELO": "celo",
+            "GLMR": "moonbeam"
         }
         id_name = coin_map.get(coin_symbol)
         if not id_name or balance <= 0:
@@ -71,6 +77,9 @@ def check_single_key(clean_key):
     report_details = []
     total_activity = 0
     
+    # Session ашиглан сүлжээний хурдыг сайжруулах
+    session = requests.Session()
+    
     # 1. EVM Networks
     try:
         evm_key = "0x" + clean_key
@@ -79,8 +88,8 @@ def check_single_key(clean_key):
         
         for name, rpc in EVM_CHAINS.items():
             try:
-                res_bal = requests.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getBalance", "params": [eth_address, "latest"], "id": 1}, timeout=2)
-                res_txs = requests.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getTransactionCount", "params": [eth_address, "latest"], "id": 2}, timeout=2)
+                res_bal = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getBalance", "params": [eth_address, "latest"], "id": 1}, timeout=2)
+                res_txs = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getTransactionCount", "params": [eth_address, "latest"], "id": 2}, timeout=2)
                 bal = int(res_bal.json().get("result", "0"), 16) / 10**18 if res_bal.status_code == 200 else 0
                 tx_count = int(res_txs.json().get("result", "0"), 16) if res_txs.status_code == 200 else 0
                 
@@ -95,6 +104,7 @@ def check_single_key(clean_key):
                     
                     usd_val = get_usd_value(symbol, bal)
                     usd_str = f" (~ ${usd_val:.2f} USD)" if usd_val > 0 else ""
+                    
                     bal_str = f"{bal:.8f}".rstrip('0').rstrip('.') if bal > 0 else "0.0"
                     if bal_str == "": bal_str = "0.0"
 
@@ -109,7 +119,7 @@ def check_single_key(clean_key):
     btc_address = private_key_to_btc_address(clean_key)
     if btc_address:
         try:
-            res = requests.get(f"https://blockchain.info/balance?active={btc_address}", timeout=3)
+            res = session.get(f"https://blockchain.info/balance?active={btc_address}", timeout=3)
             if res.status_code == 200:
                 data = res.json().get(btc_address, {})
                 btc_bal = data.get("final_balance", 0) / 10**8
@@ -117,6 +127,7 @@ def check_single_key(clean_key):
                 if btc_bal > 0 or btc_txs > 0:
                     usd_val = get_usd_value("BTC", btc_bal)
                     usd_str = f" (~ ${usd_val:.2f} USD)" if usd_val > 0 else ""
+                    
                     btc_bal_str = f"{btc_bal:.8f}".rstrip('0').rstrip('.') if btc_bal > 0 else "0.0"
                     if btc_bal_str == "": btc_bal_str = "0.0"
 
@@ -128,11 +139,12 @@ def check_single_key(clean_key):
     return clean_key, total_activity, report_details
 
 def run_balance_checker_loop():
-    print("🚀 BALANCE CHECKER WORKER STARTED!")
+    print("🚀 SERVER-SIDE BALANCE CHECKER WORKER STARTED!")
     
     while True:
         try:
             if not os.path.exists(PRIVATES_PATH):
+                import time
                 time.sleep(10)
                 continue
 
@@ -143,7 +155,7 @@ def run_balance_checker_loop():
                         for line in rf:
                             k = line.strip()
                             if len(k) == 64:
-                                already_checked.add(k)
+                                already_checked.add(k.lower())
                             elif "Key:" in line:
                                 parts = line.split("Key:")
                                 if len(parts) > 1:
@@ -155,12 +167,14 @@ def run_balance_checker_loop():
             keys = [k for k in all_keys if k.lower() not in already_checked]
 
             if not keys:
+                import time
                 time.sleep(15)
                 continue
 
             print(f"📁 Шалгах шинэ {len(keys)} түлхүүр олдлоо. Шалгаж байна...")
 
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            # Railway орчинд тохируулан Thread-ийн тоог оновчтой болгов
+            with ThreadPoolExecutor(max_workers=20) as executor:
                 futures = {executor.submit(check_single_key, key): key for key in keys}
                 
                 for future in as_completed(futures):
@@ -168,7 +182,7 @@ def run_balance_checker_loop():
                         key, activity, details = future.result()
                         
                         if activity > 0:
-                            print(f"🎉 АМЖИЛТТАЙ БАЛАНСТАЙ! Түлхүүр: {key}")
+                            print(f"🎉 АМЖИЛТТАЙ! Түлхүүр: {key}")
                             os.makedirs(os.path.dirname(RESULT_PATH) if os.path.dirname(RESULT_PATH) else ".", exist_ok=True)
                             with open(RESULT_PATH, "a", encoding="utf-8") as rf:
                                 rf.write(f"========================================\n")
@@ -181,10 +195,11 @@ def run_balance_checker_loop():
                             with open(BLACKLIST_PATH, "a", encoding="utf-8") as bf:
                                 bf.write(f"{key}\n")
                     except Exception as e:
-                        print(f"Шалгалтын алдаа: {e}")
+                        pass
         except Exception as e:
             print(f"Worker Loop алдаа: {e}")
             
+        import time
         time.sleep(10)
 
 def get_blacklist_text():
