@@ -74,33 +74,34 @@ def background_scanner():
             
             new_changed = []
             
-            # Эхний удаа уншиж байгаа бол санах ойдоо бүртгээд авна
             if not PREVIOUS_WALLETS_STATE:
+                # Анх асахдаа одоо байгаа төлвийг хадгалж авна (шуугиан тарихгүйн тулд хоосон байлгана)
                 for w in current_wallets:
                     PREVIOUS_WALLETS_STATE[w['key']] = w['tx_data']
             else:
-                # Дараагийн удаа уншихад TX тоо өөрчлөгдсөн үү гэдгийг тулгана
+                # ЗӨВХӨН ГҮЙЛГЭЭНИЙ ТОО (TX COUNT) ӨӨРЧЛӨГДСӨН ҮЕД Л /changed РҮҮ ОРУУЛНА
                 for w in current_wallets:
                     k = w['key']
                     current_txs = w['tx_data']
                     prev_txs = PREVIOUS_WALLETS_STATE.get(k, {})
                     
-                    # Гүйлгээний тоо шинэчлэгдсэн эсэхийг шалгах
                     is_tx_changed = False
                     for chain, tx_cnt in current_txs.items():
-                        if chain not in prev_txs or prev_txs[chain] != tx_cnt:
+                        # Хэрэв өмнөхөөсөө гүйлгээний тоо зөрсөн/нэмэгдсэн байвал
+                        if chain in prev_txs and prev_txs[chain] != tx_cnt:
                             is_tx_changed = True
                             break
                     
-                    if is_tx_changed or w['has_balance']:
+                    # Зөвхөн TX орон гарсан/шинэчлэгдсэн бол оруулна!
+                    if is_tx_changed:
                         new_changed.append(w)
                     
-                    # Шинэ төлөвийг хадгалах
+                    # Төлвийг шинэчилнэ
                     PREVIOUS_WALLETS_STATE[k] = current_txs
                     
                 CHANGED_WALLETS = new_changed
 
-            print(f"[SCANNER] Total: {len(ALL_WALLETS)}, Changed/Has Balance: {len(CHANGED_WALLETS)}")
+            print(f"[SCANNER] Total: {len(ALL_WALLETS)}, Strictly TX Changed: {len(CHANGED_WALLETS)}")
         except Exception as e:
             print(f"[SCANNER ERROR] {e}")
             
