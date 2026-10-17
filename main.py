@@ -7,7 +7,10 @@ app = Flask(__name__)
 def parse_result_file():
     """result.txt файлоос хаяг болон гүйлгээний тоог задлан унших"""
     wallets = []
-    result_file = "result.txt"
+    
+    # Railway дээр /data/result.txt, локал дээр байвал энгийн result.txt-г шалгана
+    result_file = "/data/result.txt" if os.path.exists("/data/result.txt") else "result.txt"
+    
     if not os.path.exists(result_file):
         return wallets
         
