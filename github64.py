@@ -17,10 +17,11 @@ headers = {
     "Accept": "application/vnd.github+json"
 }
 
+# Railway volume (/data) байгаа эсэхийг шалгаад result.txt рүү хадгалах
 if os.path.exists("/data"):
-    GITHUB_TXT_PATH = "/data/github.txt"
+    RESULT_TXT_PATH = "/data/privates.txt"
 else:
-    GITHUB_TXT_PATH = "github.txt"
+    RESULT_TXT_PATH = "privates.txt"
 
 # 👉 Анх асахдаа 100% УНТРААЛТТАЙ байх ёстой
 GITHUB_SCANNER_RUNNING = False
@@ -54,20 +55,26 @@ def process_single_file(item):
 def save_to_file(tokens):
     try:
         existing = set()
-        if os.path.exists(GITHUB_TXT_PATH):
-            with open(GITHUB_TXT_PATH, "r", encoding="utf-8") as f:
+        if os.path.exists(RESULT_TXT_PATH):
+            with open(RESULT_TXT_PATH, "r", encoding="utf-8") as f:
                 for line in f:
-                    existing.add(line.strip())
+                    if "Key:" in line:
+                        existing.add(line.split("Key:")[1].strip().lower())
+                    elif len(line.strip()) == 64:
+                        existing.add(line.strip().lower())
 
         new_count = 0
-        with open(GITHUB_TXT_PATH, "a", encoding="utf-8") as f:
+        with open(RESULT_TXT_PATH, "a", encoding="utf-8") as f:
             for token in tokens:
-                if token not in existing:
+                token_clean = token.strip().lower()
+                if token_clean not in existing:
+                    # Шууд Result формат руу эсвэл цэвэр түлхүүрээр нь бичих
                     f.write(f"{token}\n")
+                    existing.add(token_clean)
                     new_count += 1
 
         if new_count > 0:
-            print(f"✅ Шинээр {new_count} ширхэг кодыг {GITHUB_TXT_PATH} руу амжилттай хадгаллаа.")
+            print(f"✅ Шинээр {new_count} ширхэг кодыг {RESULT_TXT_PATH} руу амжилттай хадгаллаа.")
     except OSError as e:
         print(f"Файл хадгалах алдаа: {e}")
 
