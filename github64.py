@@ -112,9 +112,12 @@ def run_github_search():
 
                         response = requests.get(url, headers=headers, params=params, timeout=15)
 
+                        print(f"DEBUG: Status Code: {response.status_code} | Query: {query} | Page: {page}")
+
                         if response.status_code == 200:
                             items = response.json().get("items", [])
                             if not items:
+                                print(f"ℹ️ Энэ хуудас хоосон байна (items: 0)")
                                 continue
                             
                             found_tokens = set()
@@ -131,12 +134,14 @@ def run_github_search():
                                 save_to_file(found_tokens)
 
                         elif response.status_code == 403:
-                            print("❌ Rate limit хэтэрсэн байна. 30 секунд түр хүлээнэ үү...")
+                            print(f"❌ Rate limit эсвэл Forbidden (403): {response.text[:200]}")
                             time.sleep(30)
-                        else:
+                        elif response.status_code == 401:
+                            print(f"❌ Token буруу эсвэл хүчингүй байна (401): {response.text[:200]}")
                             break
-                    except requests.RequestException as e:
-                        print(f"Сүлжээний алдаа: {e}")
+                        else:
+                            print(f"❌ Бусад алдаа! Status: {response.status_code}, Response: {response.text[:200]}")
+                            break
         
         # Бүх keyword-уудаар хайж дуусаад түр хүлээгээд дахин эхэлнэ
         time.sleep(10)
