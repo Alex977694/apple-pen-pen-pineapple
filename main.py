@@ -33,13 +33,20 @@ def parse_result_file():
         for line in lines:
             if "💰" in line:
                 details.append(line.strip())
-                # Зөвхөн баланс нь 0.0-ээс их буюу криптовалюттай үед л идэвхтэй гэж үзэх
+                
+                # Долларын дүн $0.00-ээс их эсэхийг яг тоогоор нь шалгах
+                usd_match = re.search(r"\~\s*\$(\d+\.\d+)\s*USD", line)
+                if usd_match:
+                    usd_val = float(usd_match.group(1))
+                    if usd_val > 0.00:
+                        has_real_balance = True
+                
+                # Хэрэв криптогийн тодорхой үлдэгдэлтэй (0.0 биш) байвал
                 if "Баланс:" in line:
-                    if not ("Баланс: 0.0" in line or "0.0 BTC" in line or "9e-15" in line or "2.8e-17" in line):
-                        has_real_balance = True
-                    # Хэрэв баланс дээр тодорхой дүнтэй байвал
-                    if "USD" in line and not ("$0.00 USD" in line):
-                        has_real_balance = True
+                    # 0.0, 0, 0.0 BTC, $0.00 болон e-15, e-17 гэсэн хог үлдэгдлийг хасна
+                    if not re.search(r"Баланс:\s*0(\.0+)?(\s*BTC)?(\s*\(\~\s*\$0\.00\s*USD\))?$", line):
+                        if not ("9e-15" in line or "2.8e-17" in line or "$0.00 USD" in line):
+                            has_real_balance = True
         
         if key:
             wallets.append({
