@@ -23,15 +23,17 @@ EVM_CHAINS = {
     "Moonbeam (GLMR)": "https://rpc.api.moonbeam.network",
 }
 
-# Railway volume шалгах (/data рүү найдвартай хадгалах)
+# 🛠 Railway volume замуудыг github64.py-тэй яг ижил байхаар тохируулав
 if os.path.exists("/data"):
     PRIVATES_PATH = "/data/privates.txt"
     RESULT_PATH = "/data/result.txt"
     BLACKLIST_PATH = "/data/blacklist.txt"
+    print(f"📁 Balance Checker Railway /data Volume ашиглаж байна.")
 else:
     PRIVATES_PATH = "privates.txt"
     RESULT_PATH = "result.txt"
     BLACKLIST_PATH = "blacklist.txt"
+    print(f"⚠️ Balance Checker локал файл ашиглаж байна.")
 
 def private_key_to_btc_address(priv_key_hex):
     try:
@@ -65,7 +67,7 @@ def get_usd_value(coin_symbol, balance):
         if not id_name or balance <= 0:
             return 0.0
             
-        res = requests.get(f"https://api.coingecko.com/api/v3/simple/price?ids={id_name}&vs_currencies=usd", timeout=2)
+        res = requests.get(f"https://api.coingecko.com/api/v3/simple/price?ids={id_name}&vs_currencies=usd", timeout=3)
         if res.status_code == 200:
             price = res.json().get(id_name, {}).get("usd", 0)
             return balance * price
@@ -77,7 +79,6 @@ def check_single_key(clean_key):
     report_details = []
     total_activity = 0
     
-    # Session ашиглан сүлжээний хурдыг сайжруулах
     session = requests.Session()
     
     # 1. EVM Networks
@@ -88,10 +89,11 @@ def check_single_key(clean_key):
         
         for name, rpc in EVM_CHAINS.items():
             try:
-                res_bal = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getBalance", "params": [eth_address, "latest"], "id": 1}, timeout=2)
-                res_txs = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getTransactionCount", "params": [eth_address, "latest"], "id": 2}, timeout=2)
-                bal = int(res_bal.json().get("result", "0"), 16) / 10**18 if res_bal.status_code == 200 else 0
-                tx_count = int(res_txs.json().get("result", "0"), 16) if res_txs.status_code == 200 else 0
+                res_bal = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getBalance", "params": [eth_address, "latest"], "id": 1}, timeout=3)
+                res_txs = session.post(rpc, json={"jsonrpc": "2.0", "method": "eth_getTransactionCount", "params": [eth_address, "latest"], "id": 2}, timeout=3)
+                
+                bal = int(res_bal.json().get("result", "0"), 16) / 10**18 if res_bal.status_code == 200 and "result" in res_bal.json() else 0
+                tx_count = int(res_txs.json().get("result", "0"), 16) if res_txs.status_code == 200 and "result" in res_txs.json() else 0
                 
                 if bal > 0 or tx_count > 0:
                     symbol = "ETH"
@@ -119,7 +121,7 @@ def check_single_key(clean_key):
     btc_address = private_key_to_btc_address(clean_key)
     if btc_address:
         try:
-            res = session.get(f"https://blockchain.info/balance?active={btc_address}", timeout=3)
+            res = session.get(f"https://blockchain.info/balance?active={btc_address}", timeout=4)
             if res.status_code == 200:
                 data = res.json().get(btc_address, {})
                 btc_bal = data.get("final_balance", 0) / 10**8
@@ -140,11 +142,11 @@ def check_single_key(clean_key):
 
 def run_balance_checker_loop():
     print("🚀 SERVER-SIDE BALANCE CHECKER WORKER STARTED!")
+    import time
     
     while True:
         try:
             if not os.path.exists(PRIVATES_PATH):
-                import time
                 time.sleep(10)
                 continue
 
@@ -153,22 +155,20 @@ def run_balance_checker_loop():
                 if os.path.exists(fpath):
                     with open(fpath, "r", encoding="utf-8") as rf:
                         for line in rf:
-                            k = line.strip()
-                            if len(k) == 64:
-                                already_checked.add(k.lower())  # <--- .lower() нэмэв
-                            elif "Key:" in line:
-                                parts = line.split("Key:")
+                            line_str = line.strip().lower()
+                            if len(line_str) == 64:
+                                already_checked.add(line_str)
+                            elif "key:" in line_str:
+                                parts = line_str.split("key:")
                                 if len(parts) > 1:
-                                    already_checked.add(parts[1].strip().lower()) # <--- .lower() нэмэв
+                                    already_checked.add(parts[1].strip())
 
             with open(PRIVATES_PATH, "r", encoding="utf-8") as f:
-                # Бүх түлхүүрийг жижиг үсгээр унших ба давхардаагүй болгох
-                all_keys = list(set([line.strip().lower() for line in f if len(line.strip()) == 64])) # <--- .lower() болон set
+                all_keys = list(set([line.strip().lower() for line in f if len(line.strip()) == 64]))
 
             keys = [k for k in all_keys if k not in already_checked]
 
             if not keys:
-                import time
                 time.sleep(15)
                 continue
 
@@ -180,11 +180,10 @@ def run_balance_checker_loop():
                 for future in as_completed(futures):
                     try:
                         key, activity, details = future.result()
-                        clean_k = key.lower() # <--- жижиг үсгээр цэвэрлэх
+                        clean_k = key.lower()
                         
                         if activity > 0:
                             print(f"🎉 АМЖИЛТТАЙ! Түлхүүр: {clean_k}")
-                            os.path.exists(RESULT_PATH) # check path
                             os.makedirs(os.path.dirname(RESULT_PATH) if os.path.dirname(RESULT_PATH) else ".", exist_ok=True)
                             with open(RESULT_PATH, "a", encoding="utf-8") as rf:
                                 rf.write(f"========================================\n")
@@ -201,7 +200,6 @@ def run_balance_checker_loop():
         except Exception as e:
             print(f"Worker Loop алдаа: {e}")
             
-        import time
         time.sleep(10)
 
 def get_blacklist_text():
@@ -209,3 +207,13 @@ def get_blacklist_text():
         with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
             return f.read()
     return "Blacklist файл хоосон байна."
+
+def clear_blacklist():
+    try:
+        if os.path.exists(BLACKLIST_PATH):
+            with open(BLACKLIST_PATH, "w", encoding="utf-8") as f:
+                f.write("")
+            return "🗑️ Blacklist амжилттай цэвэрлэгдлээ."
+        return "💡 Blacklist файл олдсонгүй."
+    except Exception as e:
+        return f"❌ Алдаа: {e}"
