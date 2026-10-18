@@ -4,7 +4,6 @@ import time
 from threading import Thread
 from flask import Flask, render_template_string, Response
 import balance_checker
-from threading import Thread
 
 # Өөрийн үүсгэсэн модулийг импортлох
 import github64
@@ -110,22 +109,7 @@ def background_wallet_scanner():
 
 # Сервер асах үед Balance Checker Worker болон Wallet Scanner-ийг background-д шууд асаах
 Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
-Thread(target=background_wallet_scanner, daemon=True).start()  # <-- Энийг нэмэх
-
-# --- GITHUB SCANNER ROUTES ---
-@app.route('/git64/start')
-def start_git64():
-    success, msg = github64.start_scanner()
-    return msg
-
-@app.route("/git64/stop")
-def stop_git64():
-    success, msg = github64.stop_scanner()
-    return msg
-
-@app.route("/git64/text")
-def view_git64_text():
-    return Response(github64.get_tokens_text(), mimetype="text/plain")
+Thread(target=background_wallet_scanner, daemon=True).start()
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -145,8 +129,8 @@ HTML_TEMPLATE = """
         .change-detail { margin-left: 20px; color: #3fb950; font-weight: bold; font-size: 14px; background: #1b3a26; padding: 4px 8px; border-radius: 4px; margin-top: 5px; display: inline-block; }
         .badge { background: #238636; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; }
         .badge-change { background: #3fb950; color: #0d1117; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 8px; display: inline-block; font-weight: bold; }
-        .nav { margin-bottom: 20px; }
-        .nav a { color: #58a6ff; text-decoration: none; margin-right: 15px; font-weight: bold; }
+        .nav { margin-bottom: 20px; line-height: 1.8; }
+        .nav a { color: #58a6ff; text-decoration: none; margin-right: 15px; font-weight: bold; display: inline-block; }
     </style>
 </head>
 <body>
@@ -156,6 +140,8 @@ HTML_TEMPLATE = """
         <a href="/git64/start" style="color: #e3b341;">▶️ Git Start</a>
         <a href="/git64/stop" style="color: #f85149;">⏹️ Git Stop</a>
         <a href="/git64/text" style="color: #a5d6ff;">📄 Git TXT</a>
+        <a href="/git64/clear" style="color: #d2a8ff;" onclick="return confirm('Git tokens/results санах ойг цэвэрлэх үү?');">🧹 Git Clear</a>
+        <a href="/blacklist/clear" style="color: #ff7b72;" onclick="return confirm('Blacklist жагсаалтыг цэвэрлэх үү?');">🗑️ Blacklist Clear</a>
     </div>
 
     <h1>{{ title }}</h1>
@@ -205,14 +191,46 @@ def show_changed():
 def home():
     return "Server is Running! Dashboard: <a href='/tx/result'>/tx/result</a> | Git Scanner: <a href='/git64/start'>/git64/start</a>"
 
+# --- GITHUB SCANNER ROUTES ---
+@app.route('/git64/start')
+def start_git64():
+    success, msg = github64.start_scanner()
+    return msg
+
+@app.route("/git64/stop")
+def stop_git64():
+    success, msg = github64.stop_scanner()
+    return msg
+
+@app.route("/git64/text")
+def view_git64_text():
+    return Response(github64.get_tokens_text(), mimetype="text/plain")
+
 @app.route('/git64/clear')
 def git64_clear():
-    result = github64.clear_tokens()
-    return result
-    
+    if hasattr(github64, 'clear_tokens'):
+        return github64.clear_tokens()
+    return "Function clear_tokens not found in github64 module.", 400
+
+# --- BLACKLIST ROUTES ---
 @app.route("/blacklist/text")
 def blacklist_text():
     return balance_checker.get_blacklist_text(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+@app.route("/blacklist/clear")
+def blacklist_clear():
+    try:
+        if hasattr(balance_checker, 'clear_blacklist'):
+            return balance_checker.clear_blacklist()
+        
+        # Fallback file clearing
+        blacklist_file = "/data/blacklist.txt" if os.path.exists("/data/blacklist.txt") else "blacklist.txt"
+        if os.path.exists(blacklist_file):
+            with open(blacklist_file, "w", encoding="utf-8") as f:
+                f.write("")
+        return "Blacklist cleared successfully!", 200
+    except Exception as e:
+        return f"Error clearing blacklist: {e}", 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
