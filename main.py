@@ -227,11 +227,13 @@ HTML_TEMPLATE = """
 @app.route("/tx/result")
 def show_results():
     wallets = SCANNED_WALLETS if SCANNED_WALLETS else parse_result_file()
-    return render_template_string(HTML_TEMPLATE, title="🚀 Monitored Crypto Wallets Dashboard (All)", wallets=wallets, is_changed_view=False)
+    stats = get_system_stats()  # 🛠 Энд stats нэмэх
+    return render_template_string(HTML_TEMPLATE, title="🚀 Monitored Crypto Wallets Dashboard (All)", wallets=wallets, is_changed_view=False, stats=stats)
 
 @app.route("/tx/changed")
 def show_changed():
-    return render_template_string(HTML_TEMPLATE, title="🔥 Changed Transactions Only", wallets=CHANGED_WALLETS, is_changed_view=True)
+    stats = get_system_stats()  # 🛠 Энд мөн stats нэмэх
+    return render_template_string(HTML_TEMPLATE, title="🔥 Changed Transactions Only", wallets=CHANGED_WALLETS, is_changed_view=True, stats=stats)
 
 @app.route("/")
 def home():
