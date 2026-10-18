@@ -117,8 +117,16 @@ def run_github_search():
                 if not GITHUB_SCANNER_RUNNING:
                     break
                 query = f'{keyword} language:{lang}'
-                available_pages = list(range(1, 21))
-                selected_pages = random.sample(available_pages, 4)
+                
+                # 🛠 ШИНЭЧЛЭЛТ: per_page болон page-ийг ухаалгаар тооцож 422 алдаанаас сэргийлэх
+                per_page_options = [50, 75, 100]
+                chosen_per_page = random.choice(per_page_options)
+                
+                # GitHub API-ийн 1000 үр дүнгээс хэтрүүлэхгүйн тулд дээд хязгаарыг автоматаар бодох
+                max_page = 950 // chosen_per_page
+                available_pages = list(range(1, max_page + 1))
+                
+                selected_pages = random.sample(available_pages, min(4, len(available_pages)))
                 selected_pages.sort()
 
                 for page in selected_pages:
@@ -126,7 +134,7 @@ def run_github_search():
                         break
                     params = {
                         "q": query,
-                        "per_page": 100,
+                        "per_page": chosen_per_page,  # Динамикаар сонгогдсон хэмжээ
                         "page": page
                     }
 
@@ -135,7 +143,7 @@ def run_github_search():
                         time.sleep(sleep_time)
 
                         response = requests.get(url, headers=headers, params=params, timeout=15)
-                        print(f"DEBUG: Status Code: {response.status_code} | Query: {query} | Page: {page}")
+                        print(f"DEBUG: Status Code: {response.status_code} | Query: {query} | PerPage: {chosen_per_page} | Page: {page}")
 
                         if response.status_code == 200:
                             items = response.json().get("items", [])
