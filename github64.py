@@ -112,31 +112,36 @@ def run_github_search():
                 print("🛑 Scanner зогслоо.")
                 break
             print(f"\n🔍 Хайж байна: '{keyword}'...")
-            
+
             for lang in ["python", "javascript", "env", "txt", "typescript", "json"]:
                 if not GITHUB_SCANNER_RUNNING:
                     break
-                query = f'{keyword} language:{lang}'
-                
-                # 🛠 ШИНЭЧЛЭЛТ: per_page болон page-ийг ухаалгаар тооцож 422 алдаанаас сэргийлэх
-                per_page_options = [50, 75, 100]
-                chosen_per_page = random.choice(per_page_options)
-                
-                # GitHub API-ийн 1000 үр дүнгээс хэтрүүлэхгүйн тулд дээд хязгаарыг автоматаар бодох
-                max_page = 950 // chosen_per_page
-                available_pages = list(range(1, max_page + 1))
-                
-                selected_pages = random.sample(available_pages, min(4, len(available_pages)))
-                selected_pages.sort()
+                query = f"{keyword} language:{lang}"
+
+                # per_page сонгох (50, 75, 100)
+                chosen_per_page = random.choice([50, 75, 100])
+
+                # GitHub API-ийн хамгийн дээд хязгаар 1000 илэрц
+                max_page = 1000 // chosen_per_page
+
+                # 4 хуудас сонгох тул боломжит зайг 4 блок болгон хувааж, блок тус бүрээс санамсаргүй хуудас авах
+                chunk_size = max_page // 4
+                selected_pages = []
+
+                for i in range(4):
+                    start_p = i * chunk_size + 1
+                    end_p = (i + 1) * chunk_size if i < 3 else max_page
+                    if start_p <= end_p:
+                        rand_p = random.randint(start_p, end_p)
+                        selected_pages.append(rand_p)
+
+                # Давхардсан хуудас орсон байвал цэвэрлээд эрэмбэлэх
+                selected_pages = sorted(list(set(selected_pages)))
 
                 for page in selected_pages:
                     if not GITHUB_SCANNER_RUNNING:
                         break
-                    params = {
-                        "q": query,
-                        "per_page": chosen_per_page,  # Динамикаар сонгогдсон хэмжээ
-                        "page": page
-                    }
+                    params = {"q": query, "per_page": chosen_per_page, "page": page}
 
                     try:
                         sleep_time = random.uniform(2.0, 4.0)
