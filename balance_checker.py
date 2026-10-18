@@ -155,16 +155,17 @@ def run_balance_checker_loop():
                         for line in rf:
                             k = line.strip()
                             if len(k) == 64:
-                                already_checked.add(k.lower())
+                                already_checked.add(k.lower())  # <--- .lower() нэмэв
                             elif "Key:" in line:
                                 parts = line.split("Key:")
                                 if len(parts) > 1:
-                                    already_checked.add(parts[1].strip().lower())
+                                    already_checked.add(parts[1].strip().lower()) # <--- .lower() нэмэв
 
             with open(PRIVATES_PATH, "r", encoding="utf-8") as f:
-                all_keys = [line.strip() for line in f if len(line.strip()) == 64]
+                # Бүх түлхүүрийг жижиг үсгээр унших ба давхардаагүй болгох
+                all_keys = list(set([line.strip().lower() for line in f if len(line.strip()) == 64])) # <--- .lower() болон set
 
-            keys = [k for k in all_keys if k.lower() not in already_checked]
+            keys = [k for k in all_keys if k not in already_checked]
 
             if not keys:
                 import time
@@ -173,27 +174,28 @@ def run_balance_checker_loop():
 
             print(f"📁 Шалгах шинэ {len(keys)} түлхүүр олдлоо. Шалгаж байна...")
 
-            # Railway орчинд тохируулан Thread-ийн тоог оновчтой болгов
             with ThreadPoolExecutor(max_workers=20) as executor:
                 futures = {executor.submit(check_single_key, key): key for key in keys}
                 
                 for future in as_completed(futures):
                     try:
                         key, activity, details = future.result()
+                        clean_k = key.lower() # <--- жижиг үсгээр цэвэрлэх
                         
                         if activity > 0:
-                            print(f"🎉 АМЖИЛТТАЙ! Түлхүүр: {key}")
+                            print(f"🎉 АМЖИЛТТАЙ! Түлхүүр: {clean_k}")
+                            os.path.exists(RESULT_PATH) # check path
                             os.makedirs(os.path.dirname(RESULT_PATH) if os.path.dirname(RESULT_PATH) else ".", exist_ok=True)
                             with open(RESULT_PATH, "a", encoding="utf-8") as rf:
                                 rf.write(f"========================================\n")
-                                rf.write(f"Key: {key}\n")
+                                rf.write(f"Key: {clean_k}\n")
                                 for d in details:
                                     rf.write(f"{d}\n")
                                 rf.write(f"========================================\n\n")
                         else:
                             os.makedirs(os.path.dirname(BLACKLIST_PATH) if os.path.dirname(BLACKLIST_PATH) else ".", exist_ok=True)
                             with open(BLACKLIST_PATH, "a", encoding="utf-8") as bf:
-                                bf.write(f"{key}\n")
+                                bf.write(f"{clean_k}\n")
                     except Exception as e:
                         pass
         except Exception as e:
