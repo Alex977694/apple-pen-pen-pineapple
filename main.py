@@ -14,6 +14,44 @@ SCANNED_WALLETS = []
 CHANGED_WALLETS = []
 PREVIOUS_WALLETS_STATE = {}
 
+def get_system_stats():
+    # Файлын замууд (Railway /data эсвэл локал)
+    if os.path.exists("/data"):
+        privates_path = "/data/privates.txt"
+        result_path = "/data/result.txt"
+        blacklist_path = "/data/blacklist.txt"
+    else:
+        privates_path = "privates.txt"
+        result_path = "result.txt"
+        blacklist_path = "blacklist.txt"
+
+    # Файл тус бүрийн мөрийн тоог тоолох
+    total_privates = 0
+    if os.path.exists(privates_path):
+        with open(privates_path, "r", encoding="utf-8") as f:
+            total_privates = sum(1 for line in f if len(line.strip()) == 64)
+
+    total_results = 0
+    if os.path.exists(result_path):
+        with open(result_path, "r", encoding="utf-8") as f:
+            # Result файлд "Key:" гэсэн мөр хэд байгааг тоолох
+            total_results = sum(1 for line in f if "Key:" in line)
+
+    total_blacklist = 0
+    if os.path.exists(blacklist_path):
+        with open(blacklist_path, "r", encoding="utf-8") as f:
+            total_blacklist = sum(1 for line in f if len(line.strip()) == 64)
+
+    # Шалгахаар хүлээгдэж буй үлдэгдэл
+    pending_keys = max(0, total_privates - (total_results + total_blacklist))
+
+    return {
+        "privates": total_privates,
+        "results": total_results,
+        "blacklist": total_blacklist,
+        "pending": pending_keys
+    }
+    
 def parse_result_file():
     wallets = []
     result_file = "/data/result.txt" if os.path.exists("/data/result.txt") else "result.txt"
@@ -143,6 +181,13 @@ HTML_TEMPLATE = """
         <a href="/tx/clear" style="color: #ff7b72;" onclick="return confirm('Бүх үр дүнг (result.txt) устгах уу?');">🧹 Results Clear</a>
         <a href="/git64/clear" style="color: #d2a8ff;" onclick="return confirm('Git tokens/results санах ойг цэвэрлэх үү?');">🧹 Git Clear</a>
         <a href="/blacklist/clear" style="color: #ff7b72;" onclick="return confirm('Blacklist жагсаалтыг цэвэрлэх үү?');">🗑️ Blacklist Clear</a>
+    </div>
+
+    <div class="stats-bar" style="background: #1e1e1e; padding: 10px; color: #fff; margin-bottom: 15px; border-radius: 5px;">
+        <span>📥 Privates (Нийт олдсон): <b>{{ stats.privates }}</b></span> |
+        <span>⏳ Pending (Шалга хүлээж буй): <b style="color: #ffc107;">{{ stats.pending }}</b></span> |
+        <span>🗑️ Blacklist (Хоосон/Идэвхгүй): <b style="color: #dc3545;">{{ stats.blacklist }}</b></span> |
+        <span>🎉 Results (Амжилттай/Түүхтэй): <b style="color: #28a745;">{{ stats.results }}</b></span>
     </div>
 
     <h1>{{ title }}</h1>
