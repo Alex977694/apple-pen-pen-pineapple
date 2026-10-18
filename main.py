@@ -108,8 +108,9 @@ def background_wallet_scanner():
             print(f"[WALLET SCANNER ERROR] {e}")
         time.sleep(300)
 
-# Сервер асах үед Balance Checker Worker-ийг background-д шууд асаах
+# Сервер асах үед Balance Checker Worker болон Wallet Scanner-ийг background-д шууд асаах
 Thread(target=balance_checker.run_balance_checker_loop, daemon=True).start()
+Thread(target=background_wallet_scanner, daemon=True).start()  # <-- Энийг нэмэх
 
 # --- GITHUB SCANNER ROUTES ---
 @app.route('/git64/start')
