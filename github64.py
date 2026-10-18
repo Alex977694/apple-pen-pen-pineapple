@@ -48,7 +48,9 @@ def process_single_file(item):
             if matches:
                 found = []
                 for match in matches:
-                    found.append((match, repo_name, file_url))
+                    # 🛠 Энд олсон кодоо шууд жижиг үсэг рүү шилжүүлж байна (Case-insensitive match)
+                    clean_match = match.strip().lower()
+                    found.append((clean_match, repo_name, file_url))
                 return found
     except Exception:
         pass
@@ -63,17 +65,23 @@ def save_to_file(tokens):
         if os.path.exists(RESULT_TXT_PATH):
             with open(RESULT_TXT_PATH, "r", encoding="utf-8") as f:
                 for line in f:
-                    if "Key:" in line:
-                        existing.add(line.split("Key:")[1].strip().lower())
-                    elif len(line.strip()) == 64:
-                        existing.add(line.strip().lower())
+                    line_str = line.strip().lower()
+                    if not line_str:
+                        continue
+                    if "Key:" in line_str:
+                        parts = line_str.split("key:")
+                        if len(parts) > 1:
+                            existing.add(parts[1].strip())
+                    elif len(line_str) == 64:
+                        existing.add(line_str)
 
         new_count = 0
         with open(RESULT_TXT_PATH, "a", encoding="utf-8") as f:
             for token in tokens:
                 token_clean = token.strip().lower()
-                if token_clean not in existing:
-                    f.write(f"{token}\n")
+                # 🛠 Давхардал шалгахдаа зөвхөн 100% цэвэрлэсэн жижиг үсгээр шалгана
+                if len(token_clean) == 64 and token_clean not in existing:
+                    f.write(f"{token_clean}\n")
                     existing.add(token_clean)
                     new_count += 1
 
