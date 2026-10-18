@@ -140,6 +140,7 @@ HTML_TEMPLATE = """
         <a href="/git64/start" style="color: #e3b341;">▶️ Git Start</a>
         <a href="/git64/stop" style="color: #f85149;">⏹️ Git Stop</a>
         <a href="/git64/text" style="color: #a5d6ff;">📄 Git TXT</a>
+        <a href="/tx/clear" style="color: #ff7b72;" onclick="return confirm('Бүх үр дүнг (result.txt) устгах уу?');">🧹 Results Clear</a>
         <a href="/git64/clear" style="color: #d2a8ff;" onclick="return confirm('Git tokens/results санах ойг цэвэрлэх үү?');">🧹 Git Clear</a>
         <a href="/blacklist/clear" style="color: #ff7b72;" onclick="return confirm('Blacklist жагсаалтыг цэвэрлэх үү?');">🗑️ Blacklist Clear</a>
     </div>
@@ -205,6 +206,26 @@ def stop_git64():
 @app.route("/git64/text")
 def view_git64_text():
     return Response(github64.get_tokens_text(), mimetype="text/plain")
+
+@app.route('/tx/clear')
+def tx_clear():
+    try:
+        global SCANNED_WALLETS, CHANGED_WALLETS, PREVIOUS_WALLETS_STATE
+        
+        # result.txt файлыг хоослох
+        result_file = "/data/result.txt" if os.path.exists("/data/result.txt") else "result.txt"
+        if os.path.exists(result_file):
+            with open(result_file, "w", encoding="utf-8") as f:
+                f.write("")
+                
+        # Санах саван дахь мэдээллүүдийг цэвэрлэх
+        SCANNED_WALLETS.clear()
+        CHANGED_WALLETS.clear()
+        PREVIOUS_WALLETS_STATE.clear()
+        
+        return "Results cleared successfully! <a href='/tx/result'>Буцах</a>", 200
+    except Exception as e:
+        return f"Error clearing results: {e}", 500
 
 @app.route('/git64/clear')
 def git64_clear():
